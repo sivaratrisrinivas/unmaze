@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "unmaze"
+version = "0.1.0"
+description = "A diffusion model that solves mazes."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["numpy", "torch", "pillow"]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[tool.setuptools]
+packages = ["unmaze"]
+
+[tool.setuptools.package-data]
+unmaze = ["checkpoints/*.pt"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-m 'not slow'"
+markers = ["slow: loads the committed checkpoint and solves many mazes (run with: pytest -m slow)"]
