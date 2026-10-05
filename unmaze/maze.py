@@ -93,6 +93,8 @@ class Puzzle:
                 if nxt not in came_from and not self.walls[nxt]:
                     came_from[nxt] = here
                     queue.append(nxt)
+        if self.goal not in came_from:
+            raise ValueError("there is no route from the start to the goal")
         mask = np.zeros_like(self.walls)
         step: Pixel | None = self.goal
         while step is not None:
@@ -127,16 +129,29 @@ class Puzzle:
 def generate(n: int, seed: int) -> Puzzle:
     """A uniformly random perfect n-by-n-cell maze with a random Start and Goal, repeatable from `seed`."""
     rng = np.random.default_rng(seed)
+    walls = _carve_perfect_maze(n, rng)
+    start, goal = _pick_start_and_goal(n, rng)
+    return Puzzle(walls, _cell_pixel(start), _cell_pixel(goal))
+
+
+def _cell_pixel(cell: Pixel) -> Pixel:
+    return 2 * cell[0] + 1, 2 * cell[1] + 1
+
+
+def _carve_perfect_maze(n: int, rng: np.random.Generator) -> np.ndarray:
+    """Wilson's algorithm: loop-erased random walks from each cell until they meet the maze so far.
+
+    Gives a uniformly random spanning tree of the n-by-n lattice, drawn on a (2n+1)-pixel Grid.
+    """
     cells = [(r, c) for r in range(n) for c in range(n)]
     walls = np.ones((2 * n + 1, 2 * n + 1), dtype=bool)
-    for r, c in cells:
-        walls[2 * r + 1, 2 * c + 1] = False
+    for cell in cells:
+        walls[_cell_pixel(cell)] = False
 
     def neighbours(cell: Pixel) -> list[Pixel]:
         r, c = cell
         return [(r + dr, c + dc) for dr, dc in _STEPS if 0 <= r + dr < n and 0 <= c + dc < n]
 
-    # Wilson's algorithm: loop-erased random walks from each cell until they hit the maze so far.
     in_maze = {cells[rng.integers(len(cells))]}
     for first in cells:
         walk: dict[Pixel, Pixel] = {}
@@ -148,13 +163,16 @@ def generate(n: int, seed: int) -> Puzzle:
         here = first
         while here not in in_maze:
             there = walk[here]
-            walls[here[0] + there[0] + 1, here[1] + there[1] + 1] = False  # carve the passage
+            walls[here[0] + there[0] + 1, here[1] + there[1] + 1] = False  # carve the passage between them
             in_maze.add(here)
             here = there
+    return walls
 
+
+def _pick_start_and_goal(n: int, rng: np.random.Generator) -> tuple[Pixel, Pixel]:
+    """Two random cells at least two steps apart, so the puzzle is never trivial."""
     while True:
-        a, b = (cells[i] for i in rng.choice(len(cells), size=2, replace=False))
-        if abs(a[0] - b[0]) + abs(a[1] - b[1]) >= 2:
-            break
-    to_pixel = lambda cell: (2 * cell[0] + 1, 2 * cell[1] + 1)  # noqa: E731
-    return Puzzle(walls, to_pixel(a), to_pixel(b))
+        a, b = rng.choice(n * n, size=2, replace=False)
+        start, goal = divmod(int(a), n), divmod(int(b), n)
+        if abs(start[0] - goal[0]) + abs(start[1] - goal[1]) >= 2:
+            return start, goal

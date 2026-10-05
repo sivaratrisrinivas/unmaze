@@ -5,6 +5,7 @@ stand-ins whose behaviour is known in advance.
 """
 
 import numpy as np
+import pytest
 import torch
 
 from unmaze.diffusion import Schedule, Solver
@@ -121,3 +122,8 @@ def test_the_denoising_trace_has_one_clean_guess_per_step_and_ends_at_the_attemp
     assert len(trace) == 6
     assert all(frame.shape == (15, 15) and np.abs(frame).max() <= 1 for frame in trace)
     assert ((trace[-1] > 0) == attempt).all()
+
+
+def test_asking_for_zero_sampling_steps_is_an_error_not_a_crash_somewhere_inside():
+    with pytest.raises(ValueError, match="at least one"):
+        Solver(oracle).solve([generate(3, 0)], steps=0)

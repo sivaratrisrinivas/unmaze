@@ -4,6 +4,7 @@ Expected values are hand-drawn, never recomputed by the code under test.
 """
 
 import numpy as np
+import pytest
 
 from unmaze.maze import Puzzle, generate
 
@@ -236,3 +237,10 @@ def test_rendering_round_trips_a_puzzle_and_overlays_an_attempt():
 ###.#
 #G..#
 #####"""
+
+
+def test_a_maze_with_no_route_says_so_instead_of_crashing_obscurely():
+    walled_off = Puzzle.parse("#####\n#S#G#\n#####")
+
+    with pytest.raises(ValueError, match="no route"):
+        walled_off.solution()

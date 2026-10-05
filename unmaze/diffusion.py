@@ -57,6 +57,8 @@ class Solver:
     @torch.no_grad()
     def _denoise(self, puzzles: Sequence[Puzzle], steps: int, seed: int) -> list[torch.Tensor]:
         """The clean guess at each step, from the first (noisiest) to the last."""
+        if steps < 1:
+            raise ValueError("sampling needs at least one step")
         cond = torch.from_numpy(np.stack([p.encode() for p in puzzles]))
         generator = torch.Generator().manual_seed(seed)
         x = torch.randn(len(puzzles), 1, *cond.shape[2:], generator=generator)

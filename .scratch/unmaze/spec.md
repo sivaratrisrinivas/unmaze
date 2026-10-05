@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: implemented (see README.md for results; spec kept in sync with what was built)
 
 # Unmaze: a diffusion model that solves mazes
 
@@ -61,11 +61,11 @@ A trained checkpoint is committed so `python -m unmaze demo` works straight afte
 - **Diffusion runs over the Path Mask**, scaled to ±1, conditioned on three channels: wall, Start, Goal. See ADR 0001.
 - **Schedule:** cosine noise schedule, 1000 training timesteps. The Denoiser predicts the clean Path Mask directly (x0-prediction), trained with mean-squared error.
 - **Sampler:** deterministic DDIM-style stepping over a configurable, much smaller number of steps than training used (default 50). It takes any Denoiser, so tests inject an oracle. The Attempt is the final clean guess thresholded at zero. It can also return the Denoising Trace.
-- **Denoiser:** a small conditional U-Net with timestep embedding, coordinate channels, and self-attention at the lowest resolution so information can travel the whole maze. Pads the Grid internally to a multiple of 4 and crops back.
+- **Denoiser:** a small conditional U-Net with timestep embedding, coordinate channels, and self-attention at the lowest resolution so information can travel the whole maze. Pads the Grid internally to a multiple of 4 and crops back; the padding is plain wall (no path, no start, no goal) and the position channels are absolute pixel positions, so the amount of padding never leaks into what the model sees.
 - **Training:** on-the-fly generated Puzzles (never stored), so the model sees far more mazes than it can memorise. Held-out evaluation uses a disjoint seed range.
 - **CLI:** `python -m unmaze` with `train`, `eval`, `solve`, `demo`. A committed checkpoint backs `solve` and `demo` by default.
 - **Hardware:** CPU only, default maze 7×7 cells (15×15 Grid). Training should finish in tens of minutes on 4 cores.
-- **Dependencies:** PyTorch, NumPy, Matplotlib (only for drawing), pytest.
+- **Dependencies:** PyTorch, NumPy, Pillow (only for drawing), pytest.
 
 ## Testing Decisions
 
@@ -77,7 +77,9 @@ A good test here states a fact about behaviour that a person could check by hand
 2. **The Solver seam** (`Solver(denoiser).solve(puzzles, steps, seed)`). Tested by injecting an oracle Denoiser that returns the true solution, and degenerate Denoisers (all-wall, all-open) that must be judged unsolved. This tests the Sampler and schedule through the public interface, not their internals.
 3. **The command-line seam** (`python -m unmaze eval`). One slow test against the committed checkpoint on a fixed held-out seed set, asserting a Solve Rate floor.
 
-The ideal is one seam; three is the least that covers world, sampler, and trained model without testing the network's weights directly. The schedule and forward noising are tested only through seam 2 (the oracle must round-trip), plus a small number of known-value checks on the schedule's public shape (starts clean, ends noise).
+Added during implementation, because each is a public interface the CLI is a thin shell over: the **Denoiser's size handling** (padding is wall, tested by comparing against padding drawn in by hand), **training** (`train`, `load_solver`: loss goes down, same seed gives the same run, a saved checkpoint solves identically after reload) and **evaluation** (`evaluate`: strict Solve Rate, failure reasons, always the same held-out set). Both are tested with tiny configs so they stay fast.
+
+The ideal is one seam; this is the least that covers world, sampler, training, and trained model without testing the network's weights directly. The schedule and forward noising are tested only through seam 2 (the oracle must round-trip), plus a small number of known-value checks on the schedule's public shape (starts clean, ends noise).
 
 **Prior art:** none in the repo.
 

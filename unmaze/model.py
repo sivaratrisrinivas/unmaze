@@ -60,7 +60,7 @@ class UNet(nn.Module):
         self.time_mlp = nn.Sequential(nn.Linear(base, emb), nn.SiLU(), nn.Linear(emb, emb))
         c1, c2, c3 = base, 2 * base, 4 * base
 
-        self.stem = nn.Conv2d(1 + 3 + 2, c1, 3, padding=1)  # noisy mask + puzzle + (row, col) coordinates
+        self.stem = nn.Conv2d(1 + 3 + 2, c1, 3, padding=1)  # noisy mask + puzzle + (row, col) pixel positions
         self.down1 = nn.ModuleList([ResBlock(c1, c1, emb), ResBlock(c1, c1, emb)])
         self.pool1 = nn.Conv2d(c1, c2, 3, stride=2, padding=1)
         self.down2 = ResBlock(c2, c2, emb)
@@ -84,12 +84,15 @@ class UNet(nn.Module):
         return self.time_mlp(torch.cat([angles.sin(), angles.cos()], dim=1))
 
     def forward(self, x_t: torch.Tensor, t: torch.Tensor, cond: torch.Tensor) -> torch.Tensor:
-        b, _, h, w = x_t.shape
-        rows = torch.linspace(-1, 1, h, device=x_t.device).view(1, 1, h, 1).expand(b, 1, h, w)
-        cols = torch.linspace(-1, 1, w, device=x_t.device).view(1, 1, 1, w).expand(b, 1, h, w)
-        x = torch.cat([x_t, cond, rows, cols], dim=1)
-        pad_h, pad_w = -h % 4, -w % 4
-        x = F.pad(x, (0, pad_w, 0, pad_h), value=1.0)
+        h, w = x_t.shape[-2:]
+        pad = (0, -w % 4, 0, -h % 4)
+        # Pad each channel with what the new pixels mean: no path, wall, and no start or goal.
+        x_t = F.pad(x_t, pad, value=-1.0)
+        walls, marks = F.pad(cond[:, :1], pad, value=1.0), F.pad(cond[:, 1:], pad, value=0.0)
+        b, _, ph, pw = x_t.shape
+        rows = (torch.arange(ph, device=x_t.device) / 8).view(1, 1, ph, 1).expand(b, 1, ph, pw)
+        cols = (torch.arange(pw, device=x_t.device) / 8).view(1, 1, 1, pw).expand(b, 1, ph, pw)
+        x = torch.cat([x_t, walls, marks, rows, cols], dim=1)
 
         emb = self._time_embedding(t)
         x = self.stem(x)
