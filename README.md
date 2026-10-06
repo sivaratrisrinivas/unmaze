@@ -40,7 +40,7 @@ python -m unmaze export --checkpoint runs/model.pt --count 30     # refresh the 
 - **The model guesses**: its current guess at the clean path. The red thread in the maze is the same guess, thicker where it is surer.
 - **Noise / step / level**: how far along the denoising is.
 - After the last step the strict judge's verdict appears (*SOLVED* or *LOST*, with the reason). Then a lantern walks the path out of the heart.
-- Mazes the model got wrong are shown too (hollow red dots).
+- A maze the model gets wrong is shown as *LOST*, with the judge's reason, and as a hollow red dot (the 30 mazes shipped here were all solved, so none is shown; the page's tests inject a miss to check it).
 
 Keys: `Space` play/pause, `N` / `P` next / previous maze, `R` replay, `←` `→` scrub. It respects `prefers-reduced-motion`.
 
@@ -96,7 +96,7 @@ An honest note on what diffusion is doing here: a perfect maze has exactly one s
 `scripts/render_film.py` renders the 30-second clip. The page's film mode is a *pure function of time*, so frames are captured one by one in headless Chromium (not screen-recorded), and re-running gives the same pictures; the test suite checks this. The sound is synthesised from the same timeline with NumPy (no samples, nobody's music).
 
 ```bash
-pip install playwright                 # uses the Chromium it finds; see the script
+pip install -e ".[film]"               # adds Playwright; the script uses the Chromium it finds
 python scripts/render_film.py --out docs/unmaze-demo.mp4
 ```
 
@@ -112,7 +112,7 @@ python scripts/render_film.py --out docs/unmaze-demo.mp4
 | `unmaze/export.py` | writes the data file the page replays |
 | `unmaze/viz.py` | PNG strip and GIF of the denoising |
 | `web/` | the page: `index.html`, `style.css`, `js/`, bundled fonts (OFL / Apache 2.0) |
-| `scripts/` | `render_film.py` and the audio synth |
+| `scripts/` | `render_film.py` and the audio synth; `measure.py` and `measure_ood.py`, the measurements behind the audit |
 | `docs/eval-audit.md` | what the evals say, and what they do not (an `eval-audit` run) |
 | `GLOSSARY.md` | the project's vocabulary (overlook maze, entrance, heart, attempt, verdict, …) |
 | `docs/adr/` | the decisions worth remembering, and why |
