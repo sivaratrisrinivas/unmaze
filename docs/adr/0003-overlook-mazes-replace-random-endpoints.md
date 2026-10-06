@@ -1,0 +1,3 @@
+# Every Puzzle is an Overlook Maze: Entrance on the outer ring, Heart at the centre
+
+We replaced "random Start and Goal anywhere in the maze" with a fixed shape of puzzle: an odd-sized Maze entered from a random cell of the outer ring, with the Goal always the centre cell. This is the Overlook hedge maze, and it is the point of the project's look and story, not a detail. The cost is real: the Goal channel the Denoiser sees is now constant, and a checkpoint trained this way is not expected to solve mazes with arbitrary endpoints (the earlier random-endpoint 7×7 checkpoint is superseded and was retrained as 11×11). We accepted that: a single recognisable kind of puzzle makes the model, the evaluation and the picture all about the same thing.

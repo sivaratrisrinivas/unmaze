@@ -185,27 +185,46 @@ def test_the_same_seed_gives_the_same_puzzle_and_a_different_seed_gives_a_differ
     assert not (a.walls == c.walls).all()
 
 
-def test_start_and_goal_are_distinct_non_adjacent_cells_and_vary_between_puzzles():
-    puzzles = [generate(7, seed) for seed in range(200)]
+def test_the_heart_of_an_overlook_maze_is_always_its_centre_cell():
+    for n in (3, 7, 11):
+        for seed in range(30):
+            puzzle = generate(n, seed)
+
+            assert puzzle.goal == (n, n)  # cell (n // 2, n // 2) sits at pixel (n, n) on the Grid
+            assert not puzzle.walls[puzzle.goal]
+
+
+def test_the_entrance_is_a_cell_on_the_outer_ring_and_varies_over_all_four_sides():
+    n = 7
+    last = 2 * n - 1  # pixel of the outermost cell row/column
+    puzzles = [generate(n, seed) for seed in range(400)]
 
     for p in puzzles:
-        assert not p.walls[p.start] and not p.walls[p.goal]
-        assert p.start[0] % 2 == 1 and p.start[1] % 2 == 1  # on a cell, not a passage
-        assert p.goal[0] % 2 == 1 and p.goal[1] % 2 == 1
-        assert abs(p.start[0] - p.goal[0]) + abs(p.start[1] - p.goal[1]) >= 4  # at least two cells apart
-    assert len({p.start for p in puzzles}) > 10
-    assert len({p.goal for p in puzzles}) > 10
+        r, c = p.start
+        assert not p.walls[p.start]
+        assert r % 2 == 1 and c % 2 == 1  # on a cell, not a passage
+        assert r in (1, last) or c in (1, last)  # on the outer ring
+    assert {p.start[0] == 1 for p in puzzles if p.start[1] not in (1, last)} == {True, False}  # top and bottom
+    assert {p.start[1] == 1 for p in puzzles if p.start[0] not in (1, last)} == {True, False}  # left and right
+    assert len({p.start for p in puzzles}) == 4 * (n - 1)  # every ring cell turns up as the entrance
+
+
+def test_an_overlook_maze_needs_an_odd_size_of_at_least_three_so_the_heart_is_truly_central():
+    for n in (1, 2, 4, 8):
+        with pytest.raises(ValueError, match="odd"):
+            generate(n, 0)
 
 
 def test_mazes_are_uniformly_random_among_perfect_mazes():
-    # A 2x2 lattice is a 4-cycle: it has exactly 4 spanning trees, one per omitted passage.
+    # A 3x3 lattice has exactly 192 spanning trees (Kirchhoff), so each should turn up 1/192 of the time.
+    samples = 30_000
     counts: dict[bytes, int] = {}
-    for seed in range(2000):
-        key = generate(2, seed).walls.tobytes()
+    for seed in range(samples):
+        key = generate(3, seed).walls.tobytes()
         counts[key] = counts.get(key, 0) + 1
 
-    assert len(counts) == 4
-    assert all(400 <= count <= 600 for count in counts.values())  # 25% each, wide margin
+    assert len(counts) == 192
+    assert all(100 <= count <= 220 for count in counts.values())  # mean 156, about 4.5 sigma either way
 
 
 def test_the_true_solution_of_a_generated_puzzle_is_judged_solved():

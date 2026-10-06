@@ -11,7 +11,7 @@ import pytest
 
 from unmaze.__main__ import DEFAULT_CHECKPOINT
 
-SOLVE_RATE_FLOOR = 0.95  # the shipped checkpoint measures 100%; a real drop means the model path regressed
+SOLVE_RATE_FLOOR = 0.97  # the shipped checkpoint measures 99.9%; a real drop means the model path regressed
 
 
 def unmaze(*args: str) -> str:

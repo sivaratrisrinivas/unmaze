@@ -7,6 +7,7 @@ import time
 from pathlib import Path
 
 from unmaze.evaluation import evaluate
+from unmaze.export import export_web
 from unmaze.maze import HELD_OUT_START, generate
 from unmaze.training import TrainConfig, load_run, train
 from unmaze.viz import save_gif, save_strip
@@ -34,12 +35,20 @@ def _train(args: argparse.Namespace) -> None:
 
 def _eval(args: argparse.Namespace) -> None:
     run = load_run(args.checkpoint)
-    report = evaluate(run.solver(), run.config.maze_size, count=args.count, steps=args.sample_steps)
-    print(f"{run.config.maze_size}x{run.config.maze_size} mazes, {report.count} held-out puzzles, "
+    report = evaluate(run.solver(), run.config.maze_size, count=args.count, steps=args.sample_steps, split=args.split)
+    print(f"{run.config.maze_size}x{run.config.maze_size} mazes, {report.count} held-out puzzles ({args.split} split), "
           f"{args.sample_steps} sampling steps")
-    print(f"solve rate {report.solve_rate:.1%}   mean iou {report.mean_iou:.3f}")
+    print(f"solve rate {report.solve_rate:.1%}   (95% CI {report.ci95[0]:.1%} to {report.ci95[1]:.1%})   "
+          f"mean iou {report.mean_iou:.3f}")
     for reason, count in sorted(report.failures.items(), key=lambda kv: -kv[1]):
         print(f"  {count:>4} unsolved: {reason}")
+
+
+def _export(args: argparse.Namespace) -> None:
+    run = load_run(args.checkpoint)
+    solved = export_web(args.checkpoint, args.out, seeds=range(args.count), steps=args.sample_steps)
+    print(f"{run.config.maze_size}x{run.config.maze_size}: exported {len(solved)} held-out mazes "
+          f"({sum(solved)} solved) to {args.out}")
 
 
 def _solve(args: argparse.Namespace) -> None:
@@ -64,8 +73,8 @@ def main() -> None:
     sub = parser.add_subparsers(required=True)
 
     t = sub.add_parser("train", help="train a denoiser on freshly generated mazes (CPU is fine)")
-    t.add_argument("--maze-size", type=int, default=7, help="cells per side (the grid is 2n+1 pixels)")
-    t.add_argument("--steps", type=int, default=10_000)
+    t.add_argument("--maze-size", type=int, default=11, help="cells per side, odd (the grid is 2n+1 pixels)")
+    t.add_argument("--steps", type=int, default=6_000)
     t.add_argument("--batch-size", type=int, default=64)
     t.add_argument("--lr", type=float, default=1e-3)
     t.add_argument("--base", type=int, default=48, help="U-Net width")
@@ -81,7 +90,16 @@ def main() -> None:
     e.add_argument("--checkpoint", type=Path, default=DEFAULT_CHECKPOINT)
     e.add_argument("--count", type=int, default=200)
     e.add_argument("--sample-steps", type=int, default=50)
+    e.add_argument("--split", choices=["dev", "test"], default="dev",
+                   help="dev is fine to look at while building; test is for final reporting only")
     e.set_defaults(run=_eval)
+
+    x = sub.add_parser("export", help="solve held-out mazes and write the data file the web page replays")
+    x.add_argument("--checkpoint", type=Path, default=DEFAULT_CHECKPOINT)
+    x.add_argument("--count", type=int, default=30, help="how many held-out mazes (seeds 0..count-1)")
+    x.add_argument("--sample-steps", type=int, default=50)
+    x.add_argument("--out", type=Path, default=Path("web/data/overlook.js"))
+    x.set_defaults(run=_export)
 
     for name, helptext in (("solve", "solve one held-out maze and show it"),
                            ("demo", "solve one maze and save a picture of the denoising")):

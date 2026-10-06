@@ -1,0 +1,215 @@
+{
+  "maze_size": 11,
+  "steps": 50,
+  "fresh": {
+    "n": 5000,
+    "solved": 4990,
+    "ci95": [
+      0.9963220758236673,
+      0.9989132649593024
+    ]
+  },
+  "dev": {
+    "n": 1000,
+    "solved": 995,
+    "ci95": [
+      0.9883488743952387,
+      0.9978624960042348
+    ]
+  },
+  "fresh_one_step": {
+    "n": 1000,
+    "solved": 936
+  },
+  "leak": {
+    "fresh_in_training_sample": 0,
+    "duplicates_within_fresh": 0
+  },
+  "judge": {
+    "agrees_with_exact_comparison": 5000,
+    "n": 5000,
+    "exact_solutions_solved": 5000,
+    "corruptions": {
+      "deleted a pixel mid-route": {
+        "tried": 2000,
+        "judged_unsolved": 2000,
+        "right_reason": 2000
+      },
+      "deleted the entrance or heart": {
+        "tried": 2000,
+        "judged_unsolved": 2000,
+        "right_reason": 2000
+      },
+      "marked a wall pixel": {
+        "tried": 2000,
+        "judged_unsolved": 2000,
+        "right_reason": 2000
+      },
+      "added a spur beside the route": {
+        "tried": 2000,
+        "judged_unsolved": 2000,
+        "right_reason": 2000
+      },
+      "added a detached blob": {
+        "tried": 2000,
+        "judged_unsolved": 2000,
+        "right_reason": 2000
+      }
+    }
+  },
+  "seed_sensitivity": {
+    "per_seed_failures": [
+      6,
+      3,
+      7
+    ],
+    "failed_in_at_least_one": 13,
+    "failed_in_all_three": 0
+  },
+  "by_route_length": [
+    {
+      "bucket": "11-21.0 px",
+      "n": 912,
+      "solved": 912
+    },
+    {
+      "bucket": "22.0-29.0 px",
+      "n": 1437,
+      "solved": 1437
+    },
+    {
+      "bucket": "30.0-41.0 px",
+      "n": 1312,
+      "solved": 1312
+    },
+    {
+      "bucket": "42.0-115 px",
+      "n": 1339,
+      "solved": 1329
+    }
+  ],
+  "by_entrance": {
+    "top": {
+      "n": 1376,
+      "solved": 1373
+    },
+    "bottom": {
+      "n": 1368,
+      "solved": 1364
+    },
+    "left": {
+      "n": 1131,
+      "solved": 1131
+    },
+    "right": {
+      "n": 1125,
+      "solved": 1122
+    }
+  },
+  "tail": {
+    "pool": 30000,
+    "kept": 300,
+    "mean_route_px_pool": 33.699,
+    "mean_route_px_kept": 91.16666666666667,
+    "solved": 279,
+    "ci95": [
+      0.8953632441625534,
+      0.953763406039394
+    ]
+  },
+  "anatomy": {
+    "fresh, 50 steps": {
+      "n": 5000,
+      "failures": 10,
+      "by_reason": {
+        "the start is not marked": 1,
+        "there is a gap between the start and the goal": 7,
+        "the goal is not marked": 2
+      },
+      "missing_where": {
+        "near the entrance": 1,
+        "near the heart": 3,
+        "mid-route": 6
+      },
+      "extra_touches_route": 1,
+      "extra_on_wall": 0,
+      "heart_missing": 2,
+      "entrance_missing": 1,
+      "median_missing_px": 41.5,
+      "median_extra_px": 0.0,
+      "median_iou": 0.386,
+      "mean_route_px_failures": 76.0,
+      "mean_route_px_all": 33.4448
+    },
+    "fresh, 1 step": {
+      "n": 1000,
+      "failures": 64,
+      "by_reason": {
+        "the attempt has stray pixels, so it is not one simple path": 31,
+        "there is a gap between the start and the goal": 33
+      },
+      "missing_where": {
+        "none": 31,
+        "near the heart": 23,
+        "near the entrance": 5,
+        "mid-route": 5
+      },
+      "extra_touches_route": 30,
+      "extra_on_wall": 0,
+      "heart_missing": 0,
+      "entrance_missing": 0,
+      "median_missing_px": 1.0,
+      "median_extra_px": 1.5,
+      "median_iou": 0.927,
+      "mean_route_px_failures": 50.1875,
+      "mean_route_px_all": 33.73
+    },
+    "13x13 (untrained size), 50 steps": {
+      "n": 1000,
+      "failures": 11,
+      "by_reason": {
+        "there is a gap between the start and the goal": 8,
+        "the attempt has stray pixels, so it is not one simple path": 3
+      },
+      "missing_where": {
+        "mid-route": 7,
+        "near the entrance": 1,
+        "none": 3
+      },
+      "extra_touches_route": 4,
+      "extra_on_wall": 0,
+      "heart_missing": 0,
+      "entrance_missing": 0,
+      "median_missing_px": 30.0,
+      "median_extra_px": 0.0,
+      "median_iou": 0.495,
+      "mean_route_px_failures": 72.0909090909091,
+      "mean_route_px_all": 41.254
+    },
+    "15x15 (untrained size), 50 steps": {
+      "n": 1000,
+      "failures": 50,
+      "by_reason": {
+        "the attempt has stray pixels, so it is not one simple path": 8,
+        "the start is not marked": 3,
+        "there is a gap between the start and the goal": 36,
+        "the goal is not marked": 3
+      },
+      "missing_where": {
+        "none": 8,
+        "near the entrance": 4,
+        "mid-route": 37,
+        "near the heart": 1
+      },
+      "extra_touches_route": 14,
+      "extra_on_wall": 0,
+      "heart_missing": 3,
+      "entrance_missing": 3,
+      "median_missing_px": 57.0,
+      "median_extra_px": 0.0,
+      "median_iou": 0.2615,
+      "mean_route_px_failures": 87.68,
+      "mean_route_px_all": 49.854
+    }
+  }
+}

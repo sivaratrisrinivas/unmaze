@@ -1,14 +1,26 @@
 # Unmaze
 
-A diffusion model that solves mazes: given a maze with a start and a goal, it denoises random noise into the path that connects them.
+A diffusion model that solves hedge mazes in the style of the Overlook Hotel's: given a maze, it denoises random noise into the path between its entrance and its heart.
 
 ## Language
 
 ### The puzzle
 
 **Maze**:
-A perfect maze on an n×n lattice of cells: exactly one simple route joins any two cells (a spanning tree of the lattice). Drawn on a **Grid**.
+A perfect maze on an n×n lattice of cells: exactly one simple route joins any two cells (a spanning tree of the lattice). Drawn on a **Grid**. Every Maze Unmaze makes is an **Overlook Maze**.
 _Avoid_: labyrinth, board, map
+
+**Overlook Maze**:
+A Maze with an odd n, a single **Entrance** on its outer ring and a **Heart** at its centre, drawn as hedges. The only kind of Puzzle Unmaze makes.
+_Avoid_: hedge maze (that is how it is drawn, not what it is), normal maze, random maze
+
+**Entrance**:
+The cell on the outer ring of an Overlook Maze where the outside world meets the hedges. The **Start**.
+_Avoid_: door, gate, opening
+
+**Heart**:
+The centre cell of an Overlook Maze. The **Goal**.
+_Avoid_: centre, middle, target
 
 **Grid**:
 The (2n+1)×(2n+1) boolean picture of a Maze in which every pixel is either **wall** or **open**. Cells sit on odd coordinates; the pixel between two adjacent cells is open only when the wall between them is carved.
@@ -19,7 +31,7 @@ A Maze together with a **Start** and a **Goal**: the thing a Solver is asked to 
 _Avoid_: problem, instance, task
 
 **Start** / **Goal**:
-The two distinct cells a Solution must connect. Both are random, never fixed corners, so the model cannot memorise their position.
+The two cells a Solution must connect: the Entrance and the Heart. A path has no direction, so a Solution reads equally well as the way in or the way out.
 _Avoid_: source/target, entrance/exit
 
 **Solution**:
