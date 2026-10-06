@@ -1,0 +1,3 @@
+# Diffuse the Path Mask, conditioned on the Puzzle
+
+We run diffusion over the Solution's Path Mask (a binary picture, scaled to ±1) and feed the Puzzle in as conditioning channels (walls, Start, Goal). We do not diffuse the Maze itself, and we do not generate the path as a token sequence. A path-as-picture keeps every step of denoising a whole-path decision, so the model can revise a wrong turn anywhere until the last step, which an autoregressive path cannot do. The cost is that nothing in the architecture forces the output to be a connected path; that is what the Verdict is for (see ADR 0002).
