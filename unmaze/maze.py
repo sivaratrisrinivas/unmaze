@@ -10,7 +10,8 @@ import numpy as np
 Pixel = tuple[int, int]
 
 # Seeds from here up are reserved for evaluation; training only ever draws below it.
-HELD_OUT_START = 1_000_000_000
+HELD_OUT_START = 1_000_000_000      # the dev split: fine to look at while building
+TEST_START = 4_000_000_000          # the test split: for final reporting. Every time it is used to make a decision it is spent.
 _STEPS = ((1, 0), (-1, 0), (0, 1), (0, -1))
 
 

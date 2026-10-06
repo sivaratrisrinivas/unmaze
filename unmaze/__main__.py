@@ -35,10 +35,11 @@ def _train(args: argparse.Namespace) -> None:
 
 def _eval(args: argparse.Namespace) -> None:
     run = load_run(args.checkpoint)
-    report = evaluate(run.solver(), run.config.maze_size, count=args.count, steps=args.sample_steps)
-    print(f"{run.config.maze_size}x{run.config.maze_size} mazes, {report.count} held-out puzzles, "
+    report = evaluate(run.solver(), run.config.maze_size, count=args.count, steps=args.sample_steps, split=args.split)
+    print(f"{run.config.maze_size}x{run.config.maze_size} mazes, {report.count} held-out puzzles ({args.split} split), "
           f"{args.sample_steps} sampling steps")
-    print(f"solve rate {report.solve_rate:.1%}   mean iou {report.mean_iou:.3f}")
+    print(f"solve rate {report.solve_rate:.1%}   (95% CI {report.ci95[0]:.1%} to {report.ci95[1]:.1%})   "
+          f"mean iou {report.mean_iou:.3f}")
     for reason, count in sorted(report.failures.items(), key=lambda kv: -kv[1]):
         print(f"  {count:>4} unsolved: {reason}")
 
@@ -89,6 +90,8 @@ def main() -> None:
     e.add_argument("--checkpoint", type=Path, default=DEFAULT_CHECKPOINT)
     e.add_argument("--count", type=int, default=200)
     e.add_argument("--sample-steps", type=int, default=50)
+    e.add_argument("--split", choices=["dev", "test"], default="dev",
+                   help="dev is fine to look at while building; test is for final reporting only")
     e.set_defaults(run=_eval)
 
     x = sub.add_parser("export", help="solve held-out mazes and write the data file the web page replays")

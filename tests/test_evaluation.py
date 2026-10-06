@@ -1,11 +1,12 @@
 """Behaviour of evaluation: the Solve Rate on a fixed held-out set, with reasons for failures."""
 
 import numpy as np
+import pytest
 import torch
 
 from unmaze.diffusion import Solver
 from unmaze.evaluation import evaluate
-from unmaze.maze import HELD_OUT_START, generate
+from unmaze.maze import HELD_OUT_START, TEST_START, generate
 from tests.test_solver import oracle
 
 
@@ -37,3 +38,26 @@ def test_evaluation_always_uses_the_same_held_out_mazes():
 
     expected = np.stack([generate(5, HELD_OUT_START + i).encode() for i in range(10)])
     assert (seen[0].numpy() == expected).all()
+
+
+def test_the_report_carries_a_95_percent_confidence_interval_so_small_samples_are_not_oversold():
+    perfect = evaluate(Solver(oracle), maze_size=5, count=20)
+    blank = evaluate(Solver(lambda x_t, t, cond: torch.full_like(x_t, -1.0)), maze_size=5, count=20)
+
+    # Wilson interval for 20/20 and 0/20, worked by hand: [1 / (1 + z^2/n), 1] and [0, (z^2/n) / (1 + z^2/n)].
+    assert perfect.ci95 == pytest.approx((0.8389, 1.0), abs=1e-3)
+    assert blank.ci95 == pytest.approx((0.0, 0.1611), abs=1e-3)
+
+
+def test_the_test_split_is_a_different_set_of_mazes_from_the_dev_split():
+    seen = []
+
+    def spy(x_t, t, cond):
+        seen.append(cond.clone())
+        return torch.full_like(x_t, -1.0)
+
+    evaluate(Solver(spy), maze_size=5, count=10, steps=1, split="test")
+
+    expected = np.stack([generate(5, TEST_START + i).encode() for i in range(10)])
+    assert (seen[0].numpy() == expected).all()
+    assert TEST_START != HELD_OUT_START
