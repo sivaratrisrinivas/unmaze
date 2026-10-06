@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 
 import numpy as np
 import torch
@@ -38,6 +39,20 @@ class Schedule:
         return ab.sqrt() * x0 + (1 - ab).sqrt() * noise
 
 
+@dataclass(frozen=True)
+class Replay:
+    """Everything the Denoiser saw and said while solving one Puzzle, noisiest step first.
+
+    levels   noise level asked about at each step (999 = pure noise, 0 = almost clean)
+    noisy    (steps, H, W) the noisy Path Mask the Denoiser was shown
+    guesses  (steps, H, W) its clean guess, values in [-1, 1]
+    """
+
+    levels: list[int]
+    noisy: np.ndarray
+    guesses: np.ndarray
+
+
 class Solver:
     """Turns Puzzles into Attempts by denoising pure noise with a Denoiser (deterministic DDIM)."""
 
@@ -47,16 +62,25 @@ class Solver:
 
     def solve(self, puzzles: Sequence[Puzzle], steps: int = 50, seed: int = 0) -> list[np.ndarray]:
         """One Attempt (a boolean Path Mask) per Puzzle."""
-        final = self._denoise(puzzles, steps, seed)[-1]
+        final = self._denoise(puzzles, steps, seed)[2][-1]
         return [mask > 0 for mask in final.squeeze(1).numpy()]
 
+    def replay(self, puzzle: Puzzle, steps: int = 50, seed: int = 0) -> Replay:
+        """The full Denoising Trace of one Puzzle: what the Denoiser saw and guessed at every step."""
+        levels, noisy, guesses = self._denoise([puzzle], steps, seed)
+        return Replay(
+            levels=[int(level) for level in levels],
+            noisy=np.stack([x[0, 0].numpy() for x in noisy]),
+            guesses=np.stack([g[0, 0].numpy() for g in guesses]),
+        )
+
     def trace(self, puzzle: Puzzle, steps: int = 50, seed: int = 0) -> list[np.ndarray]:
-        """The Denoising Trace: the clean guess (values in [-1, 1]) at every step, noisiest first."""
-        return [guess[0, 0].numpy() for guess in self._denoise([puzzle], steps, seed)]
+        """Just the clean guess at every step, noisiest first."""
+        return list(self.replay(puzzle, steps, seed).guesses)
 
     @torch.no_grad()
-    def _denoise(self, puzzles: Sequence[Puzzle], steps: int, seed: int) -> list[torch.Tensor]:
-        """The clean guess at each step, from the first (noisiest) to the last."""
+    def _denoise(self, puzzles: Sequence[Puzzle], steps: int, seed: int):
+        """(levels, noisy masks, clean guesses), one entry per step from the noisiest to the last."""
         if steps < 1:
             raise ValueError("sampling needs at least one step")
         cond = torch.from_numpy(np.stack([p.encode() for p in puzzles]))
@@ -64,13 +88,14 @@ class Solver:
         x = torch.randn(len(puzzles), 1, *cond.shape[2:], generator=generator)
 
         levels = np.linspace(self.schedule.timesteps - 1, 0, steps).round().astype(int)
-        guesses = []
+        noisy, guesses = [], []
         for i, level in enumerate(levels):
             t = torch.full((len(puzzles),), int(level), dtype=torch.long)
             x0_hat = self.denoiser(x, t, cond).clamp(-1, 1)
+            noisy.append(x)
             guesses.append(x0_hat)
             ab = self.schedule.alpha_bar[level]
             ab_next = self.schedule.alpha_bar[levels[i + 1]] if i + 1 < steps else torch.tensor(1.0)
             eps_hat = (x - ab.sqrt() * x0_hat) / (1 - ab).sqrt()
             x = ab_next.sqrt() * x0_hat + (1 - ab_next).sqrt() * eps_hat
-        return guesses
+        return levels, noisy, guesses

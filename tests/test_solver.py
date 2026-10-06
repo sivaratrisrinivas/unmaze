@@ -102,7 +102,7 @@ def test_the_real_denoiser_accepts_mazes_of_any_size_and_returns_an_attempt_the_
     torch.manual_seed(0)
     denoiser = UNet(base=8).eval()
 
-    for n in (2, 3, 5, 7, 8):
+    for n in (3, 5, 7, 9, 11):
         puzzles = [generate(n, seed) for seed in range(2)]
 
         attempts = Solver(denoiser).solve(puzzles, steps=3, seed=0)
@@ -127,3 +127,18 @@ def test_the_denoising_trace_has_one_clean_guess_per_step_and_ends_at_the_attemp
 def test_asking_for_zero_sampling_steps_is_an_error_not_a_crash_somewhere_inside():
     with pytest.raises(ValueError, match="at least one"):
         Solver(oracle).solve([generate(3, 0)], steps=0)
+
+
+def test_a_replay_records_the_level_the_noisy_mask_and_the_guess_for_every_step():
+    puzzle = generate(7, 0)
+    echo = lambda x_t, t, cond: torch.tanh(3 * x_t)  # noqa: E731
+    solver = Solver(echo)
+
+    replay = solver.replay(puzzle, steps=6, seed=3)
+    (attempt,) = solver.solve([puzzle], steps=6, seed=3)
+
+    assert replay.levels == sorted(replay.levels, reverse=True) and len(replay.levels) == 6
+    assert replay.levels[0] == 999 and replay.levels[-1] == 0
+    assert replay.noisy.shape == replay.guesses.shape == (6, 15, 15)
+    assert abs(replay.noisy[0].std() - 1.0) < 0.2  # the first thing the model sees is unit-variance noise
+    assert ((replay.guesses[-1] > 0) == attempt).all()

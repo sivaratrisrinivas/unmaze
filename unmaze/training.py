@@ -18,8 +18,8 @@ from unmaze.model import UNet
 
 @dataclass(frozen=True)
 class TrainConfig:
-    maze_size: int = 7
-    steps: int = 10_000
+    maze_size: int = 11
+    steps: int = 6_000
     batch_size: int = 64
     lr: float = 1e-3
     base: int = 48

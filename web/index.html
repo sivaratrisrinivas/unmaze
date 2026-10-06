@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Unmaze: a diffusion model finds the way out</title>
+  <meta name="description" content="Watch a diffusion model solve an Overlook-style hedge maze: the path crystallises out of snow-static, step by step, from the real model's own frames.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="screen">
+    <canvas id="world" width="1920" height="1080" aria-label="Aerial view of a snow-covered hedge maze being solved"></canvas>
+
+    <header id="title">
+      <h1>UNMAZE</h1>
+      <p>a diffusion model finds the way out of the hedge maze</p>
+    </header>
+
+    <section id="hud" aria-label="What the model sees and believes">
+      <div class="monitors">
+        <figure class="crt">
+          <canvas id="seesCanvas"></canvas>
+          <figcaption>THE MODEL SEES</figcaption>
+        </figure>
+        <figure class="crt guess">
+          <canvas id="guessCanvas"></canvas>
+          <figcaption>THE MODEL GUESSES</figcaption>
+        </figure>
+      </div>
+
+      <div class="meter" role="img" aria-label="Noise level">
+        <div class="meter-head"><span>NOISE</span><span id="sigmaValue">1.00</span></div>
+        <div class="meter-bar"><i id="sigmaBar"></i></div>
+        <div class="meter-foot"><span id="stepValue">STEP 1 / 50</span><span id="levelValue">LEVEL 999</span></div>
+      </div>
+
+      <ol id="how" class="how">
+        <li><b>1</b><span>Start from pure snow. This is all the model is shown.</span></li>
+        <li><b>2</b><span>It guesses where the path runs through the hedges.</span></li>
+        <li><b>3</b><span>Remove a little snow, ask again, and repeat until the path is sharp.</span></li>
+      </ol>
+
+      <div id="verdict" class="verdict" aria-live="polite">
+        <div id="verdictWord" class="verdict-word">&nbsp;</div>
+        <div id="verdictNote" class="verdict-note">&nbsp;</div>
+      </div>
+
+      <div class="mazes">
+        <div class="mazes-head"><span id="mazeLabel">MAZE 1 / 1</span><span class="hint">N next &middot; P previous</span></div>
+        <div id="mazeDots" class="dots"></div>
+      </div>
+    </section>
+
+    <nav id="controls" aria-label="Playback">
+      <button id="playBtn" type="button" aria-label="Play or pause">PAUSE</button>
+      <input id="scrub" type="range" min="0" max="1000" value="0" aria-label="Denoising progress">
+      <label>SPEED
+        <select id="speed" aria-label="Playback speed">
+          <option value="0.5">0.5&times;</option>
+          <option value="1" selected>1&times;</option>
+          <option value="2">2&times;</option>
+        </select>
+      </label>
+      <button id="prevBtn" type="button">&lsaquo; PREV</button>
+      <button id="nextBtn" type="button">NEXT MAZE &rsaquo;</button>
+      <button id="replayBtn" type="button">REPLAY</button>
+    </nav>
+
+    <div id="vignette"></div>
+    <canvas id="grain" width="480" height="270"></canvas>
+    <div id="fade"></div>
+    <div id="card" aria-hidden="true"></div>
+    <div id="bars"><i></i><i></i></div>
+  </div>
+
+  <noscript>This page replays a diffusion model solving a maze and needs JavaScript.</noscript>
+
+  <script src="data/overlook.js"></script>
+  <script src="js/decode.js"></script>
+  <script src="js/scene.js"></script>
+  <script src="js/film.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

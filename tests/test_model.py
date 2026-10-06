@@ -1,10 +1,8 @@
 """Behaviour of the U-Net's size handling: a Grid that is not a multiple of 4 is padded with plain wall."""
 
-import numpy as np
 import torch
 import torch.nn.functional as F
 
-from unmaze.maze import generate
 from unmaze.model import UNet
 
 
@@ -17,8 +15,11 @@ def randomised_unet() -> UNet:
 
 def test_a_grid_that_needs_padding_is_treated_exactly_as_if_it_were_padded_with_wall_by_hand():
     model = randomised_unet()
-    puzzles = [generate(6, seed) for seed in range(3)]  # a 13x13 Grid: 3 pixels short of 16
-    cond = torch.from_numpy(np.stack([p.encode() for p in puzzles]))
+    # A hand-made 13x13 Grid (3 pixels short of 16): random walls, a start and a goal.
+    walls = (torch.rand(3, 1, 13, 13) > 0.5).float()
+    start, goal = torch.zeros(3, 1, 13, 13), torch.zeros(3, 1, 13, 13)
+    start[:, :, 1, 1] = goal[:, :, 11, 11] = 1.0
+    cond = torch.cat([walls, start, goal], dim=1)
     x_t = torch.randn(3, 1, 13, 13)
     t = torch.tensor([10, 500, 999])
 

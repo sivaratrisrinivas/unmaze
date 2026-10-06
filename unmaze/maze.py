@@ -127,11 +127,17 @@ class Puzzle:
 
 
 def generate(n: int, seed: int) -> Puzzle:
-    """A uniformly random perfect n-by-n-cell maze with a random Start and Goal, repeatable from `seed`."""
+    """A uniformly random Overlook Maze of n-by-n cells, repeatable from `seed`.
+
+    The Entrance (Start) is a random cell on the outer ring; the Heart (Goal) is the centre cell.
+    """
+    if n < 3 or n % 2 == 0:
+        raise ValueError(f"an Overlook Maze needs an odd size of at least 3 cells, not {n}")
     rng = np.random.default_rng(seed)
     walls = _carve_perfect_maze(n, rng)
-    start, goal = _pick_start_and_goal(n, rng)
-    return Puzzle(walls, _cell_pixel(start), _cell_pixel(goal))
+    ring = [(r, c) for r in range(n) for c in range(n) if r in (0, n - 1) or c in (0, n - 1)]
+    entrance = ring[rng.integers(len(ring))]
+    return Puzzle(walls, _cell_pixel(entrance), _cell_pixel((n // 2, n // 2)))
 
 
 def _cell_pixel(cell: Pixel) -> Pixel:
@@ -167,12 +173,3 @@ def _carve_perfect_maze(n: int, rng: np.random.Generator) -> np.ndarray:
             in_maze.add(here)
             here = there
     return walls
-
-
-def _pick_start_and_goal(n: int, rng: np.random.Generator) -> tuple[Pixel, Pixel]:
-    """Two random cells at least two steps apart, so the puzzle is never trivial."""
-    while True:
-        a, b = rng.choice(n * n, size=2, replace=False)
-        start, goal = divmod(int(a), n), divmod(int(b), n)
-        if abs(start[0] - goal[0]) + abs(start[1] - goal[1]) >= 2:
-            return start, goal
