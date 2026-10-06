@@ -50,7 +50,7 @@ Keys: `Space` play/pause, `N` / `P` next / previous maze, `R` replay, `←` `→
 
 **Read that number with its limits** (the full audit, with the evidence, is in [`docs/eval-audit.md`](docs/eval-audit.md)):
 
-- **It describes one kind of maze.** All training and test mazes come from the same generator (uniform random spanning trees). On depth-first-search mazes with long winding corridors, which the model never trained on, it solves **66%**.
+- **It describes one kind of maze.** All training and test mazes come from the same generator (uniform random spanning trees). On depth-first-search mazes with long winding corridors, which the model never trained on, it solves **66%**. A retrain on a mix of maze styles lifted that to 88% but missed the 90% bar I set beforehand, so it is not the shipped model (see [`docs/adr/0004`](docs/adr/0004-train-on-a-mix-of-styles-and-judge-each.md)).
 - **Long routes are where it fails.** All 10 failures in the 5,000 were in the longest quarter of routes; on a stress set of the 300 longest routes of 30,000 it solves **93%**.
 - **The sampler's noise moves the number by a few tenths of a percent.** The same 1,000 mazes score 993 to 999 under different sampler seeds, and the failures are about the noise, not the maze (13 mazes failed under some seed, none under all three).
 
@@ -76,7 +76,7 @@ Zero-shot on maze *sizes* it was not trained on (50 steps):
 | 13×13 | 27×27 | 98.9% | 1,000 |
 | 15×15 | 31×31 | 95.0% | 1,000 |
 
-Reproduce with `python -m unmaze eval --count 1000` (it prints the interval). Use `--split test` for final numbers only. The 30 mazes in the page are the first 30 dev seeds, picked without looking at the results (all solved).
+Reproduce with `python -m unmaze eval --count 1000 --style uniform` (it prints the interval; without `--style` it reports each of the three maze styles separately). Use `--split test` for final numbers only. The 30 mazes in the page are the first 30 dev seeds, picked without looking at the results (all solved).
 
 ## How it works
 

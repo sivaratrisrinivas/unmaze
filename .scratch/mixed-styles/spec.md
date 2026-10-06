@@ -1,4 +1,4 @@
-Status: implemented, training in progress
+Status: implemented and trained; the model missed the ship rule (see ADR 0004, Outcome), so the shipped checkpoint is unchanged
 
 # Mixed-style training
 

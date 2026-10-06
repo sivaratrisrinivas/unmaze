@@ -88,3 +88,18 @@ Ground truth is exact, so no annotators are needed. The failures above were cate
 - `error-discovery`'s interactive review app and `validate-evaluator`'s human-label calibration: both are for subjective LLM outputs with human reviewers, and there is nothing of that kind here.
 - Retraining on a mixture of generators, and long-route oversampling (findings 1 and 2).
 - CI (finding 6).
+
+## Follow-up: the mixed-style retrain
+
+Finding 1 asked for training on more than one Style of maze. That was done (ADR 0004) and measured once on the untouched test split, 1,000 mazes per Style, 50 steps.
+
+| Style | shipped model | mixed model |
+|---|---:|---:|
+| uniform | 99.7% | 99.8% |
+| winding | 66.3% (CI 63.3 to 69.2) | 88.0% (CI 85.8 to 89.9) |
+| bushy | 100% | 100% |
+
+**It helps a lot and still misses.** Winding rose 22 points, but the bar set beforehand was 90%, so the shipped checkpoint was not replaced. The remaining 120 winding failures look like the earlier ones: 49 gaps in the route, 43 stray pixels, and 28 where the entrance or heart is left unmarked. That is still long-range continuity on long routes, so the next levers are more training, a heavier winding share, or a larger model, not the sampler. Failures are also still noise-driven, so resampling on an invalid answer remains the cheap option, and it remains a decision against ADR 0002.
+
+The test split is now spent. Use a new range for the next round.
+
