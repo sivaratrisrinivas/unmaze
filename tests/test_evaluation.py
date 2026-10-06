@@ -61,3 +61,16 @@ def test_the_test_split_is_a_different_set_of_mazes_from_the_dev_split():
     expected = np.stack([generate(5, TEST_START + i).encode() for i in range(10)])
     assert (seen[0].numpy() == expected).all()
     assert TEST_START != HELD_OUT_START
+
+
+def test_evaluation_can_be_asked_for_one_style_of_maze_at_a_time():
+    seen = []
+
+    def spy(x_t, t, cond):
+        seen.append(cond.clone())
+        return torch.full_like(x_t, -1.0)
+
+    evaluate(Solver(spy), maze_size=7, count=10, steps=1, style="winding")
+
+    expected = np.stack([generate(7, HELD_OUT_START + i, "winding").encode() for i in range(10)])
+    assert (seen[0].numpy() == expected).all()

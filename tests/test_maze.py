@@ -6,7 +6,7 @@ Expected values are hand-drawn, never recomputed by the code under test.
 import numpy as np
 import pytest
 
-from unmaze.maze import Puzzle, generate
+from unmaze.maze import STYLES, Puzzle, generate
 
 # Four cells joined S -> top-right -> bottom-right -> G. The only wall between
 # cells is the pixel at row 2, col 1.
@@ -263,3 +263,56 @@ def test_a_maze_with_no_route_says_so_instead_of_crashing_obscurely():
 
     with pytest.raises(ValueError, match="no route"):
         walled_off.solution()
+
+
+def test_there_are_three_styles_of_overlook_maze():
+    assert STYLES == ("uniform", "winding", "bushy")
+
+
+@pytest.mark.parametrize("style", STYLES)
+def test_every_style_makes_perfect_repeatable_overlook_mazes_that_can_be_solved(style):
+    n = 7
+    for seed in range(20):
+        puzzle = generate(n, seed, style)
+        open_pixels = int((~puzzle.walls).sum())
+        r, c = puzzle.start
+
+        assert open_pixels == n * n + (n * n - 1)                    # a tree over all n*n cells...
+        assert reachable_open_pixels(puzzle) == open_pixels          # ...that is connected
+        assert puzzle.goal == (n, n)                                 # the heart is the centre
+        assert r in (1, 2 * n - 1) or c in (1, 2 * n - 1)            # the entrance is on the outer ring
+        assert puzzle.judge(puzzle.solution()).solved
+        assert (generate(n, seed, style).walls == puzzle.walls).all()
+
+
+def test_an_unknown_style_is_an_error_that_lists_the_choices():
+    with pytest.raises(ValueError, match="winding"):
+        generate(7, 0, "spiral")
+
+
+def route_pixels(style: str, count: int, n: int = 11) -> float:
+    return sum(int(generate(n, seed, style).solution().sum()) for seed in range(count)) / count
+
+
+def dead_end_fraction(style: str, count: int = 60, n: int = 11) -> float:
+    """Share of cells that have exactly one open passage out of them (a dead end)."""
+    dead = 0
+    for seed in range(count):
+        walls = generate(n, seed, style).walls
+        for r in range(n):
+            for c in range(n):
+                y, x = 2 * r + 1, 2 * c + 1
+                exits = sum(not walls[y + dy, x + dx] for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)))
+                dead += exits == 1
+    return dead / (count * n * n)
+
+
+def test_winding_mazes_have_much_longer_routes_than_uniform_ones():
+    assert route_pixels("winding", 100) > 1.5 * route_pixels("uniform", 100)
+
+
+def test_winding_mazes_have_few_dead_ends_and_bushy_ones_many():
+    # Known from the maze-generation literature: depth-first carving leaves about 10% of cells as
+    # dead ends, randomised Prim about 36%.
+    assert dead_end_fraction("winding") < 0.2
+    assert dead_end_fraction("bushy") > 0.3

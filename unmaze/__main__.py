@@ -8,7 +8,7 @@ from pathlib import Path
 
 from unmaze.evaluation import evaluate
 from unmaze.export import export_web
-from unmaze.maze import HELD_OUT_START, generate
+from unmaze.maze import HELD_OUT_START, STYLES, generate
 from unmaze.training import TrainConfig, load_run, train
 from unmaze.viz import save_gif, save_strip
 
@@ -16,15 +16,20 @@ DEFAULT_CHECKPOINT = Path(__file__).parent / "checkpoints" / "unmaze.pt"
 
 
 def _train(args: argparse.Namespace) -> None:
+    styles = tuple(args.styles.split(","))
+    weights = tuple(float(w) for w in args.style_weights.split(","))
+    if len(styles) != len(weights):
+        raise SystemExit("--styles and --style-weights must have the same number of entries")
     config = TrainConfig(maze_size=args.maze_size, steps=args.steps, batch_size=args.batch_size,
-                         lr=args.lr, base=args.base, seed=args.seed)
+                         lr=args.lr, base=args.base, seed=args.seed, styles=styles, style_weights=weights)
     start = time.time()
 
     def progress(step, loss, run):
         line = f"step {step:>6}/{config.steps}  loss {loss:.4f}  {time.time() - start:6.0f}s"
         if args.eval_every and (step % args.eval_every == 0 or step == config.steps):
-            report = evaluate(run.solver(), config.maze_size, count=args.eval_count, steps=args.sample_steps)
-            line += f"  | held-out solve rate {report.solve_rate:.1%} (iou {report.mean_iou:.2f})"
+            rates = [f"{style} {evaluate(run.solver(), config.maze_size, count=args.eval_count, steps=args.sample_steps, style=style).solve_rate:.0%}"
+                     for style in STYLES]
+            line += "  | held-out solve rate: " + ", ".join(rates)
             run.save(args.out)  # keep the latest averaged weights on disk as we go
         print(line, flush=True)
 
@@ -35,13 +40,15 @@ def _train(args: argparse.Namespace) -> None:
 
 def _eval(args: argparse.Namespace) -> None:
     run = load_run(args.checkpoint)
-    report = evaluate(run.solver(), run.config.maze_size, count=args.count, steps=args.sample_steps, split=args.split)
-    print(f"{run.config.maze_size}x{run.config.maze_size} mazes, {report.count} held-out puzzles ({args.split} split), "
-          f"{args.sample_steps} sampling steps")
-    print(f"solve rate {report.solve_rate:.1%}   (95% CI {report.ci95[0]:.1%} to {report.ci95[1]:.1%})   "
-          f"mean iou {report.mean_iou:.3f}")
-    for reason, count in sorted(report.failures.items(), key=lambda kv: -kv[1]):
-        print(f"  {count:>4} unsolved: {reason}")
+    n = run.config.maze_size
+    styles = STYLES if args.style == "all" else (args.style,)
+    print(f"{n}x{n} mazes, {args.count} held-out puzzles per style ({args.split} split), {args.sample_steps} sampling steps")
+    for style in styles:
+        report = evaluate(run.solver(), n, count=args.count, steps=args.sample_steps, split=args.split, style=style)
+        print(f"{style:8s} solve rate {report.solve_rate:.1%}   (95% CI {report.ci95[0]:.1%} to {report.ci95[1]:.1%})   "
+              f"mean iou {report.mean_iou:.3f}")
+        for reason, count in sorted(report.failures.items(), key=lambda kv: -kv[1]):
+            print(f"           {count:>4} unsolved: {reason}")
 
 
 def _export(args: argparse.Namespace) -> None:
@@ -69,7 +76,7 @@ def _solve(args: argparse.Namespace) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(prog="unmaze", description="A diffusion model that solves mazes.")
+    parser = argparse.ArgumentParser(prog="unmaze", description="A diffusion model that solves Overlook-style hedge mazes.")
     sub = parser.add_subparsers(required=True)
 
     t = sub.add_parser("train", help="train a denoiser on freshly generated mazes (CPU is fine)")
@@ -79,6 +86,8 @@ def main() -> None:
     t.add_argument("--lr", type=float, default=1e-3)
     t.add_argument("--base", type=int, default=48, help="U-Net width")
     t.add_argument("--seed", type=int, default=0)
+    t.add_argument("--styles", default=",".join(STYLES), help="kinds of maze to train on, comma-separated")
+    t.add_argument("--style-weights", default="0.4,0.4,0.2", help="how often each style is drawn (same order)")
     t.add_argument("--out", type=Path, default=Path("runs/model.pt"))
     t.add_argument("--log-every", type=int, default=100)
     t.add_argument("--eval-every", type=int, default=1000, help="0 disables held-out evaluation")
@@ -90,6 +99,7 @@ def main() -> None:
     e.add_argument("--checkpoint", type=Path, default=DEFAULT_CHECKPOINT)
     e.add_argument("--count", type=int, default=200)
     e.add_argument("--sample-steps", type=int, default=50)
+    e.add_argument("--style", choices=[*STYLES, "all"], default="all", help="which kind of maze (default: each, separately)")
     e.add_argument("--split", choices=["dev", "test"], default="dev",
                    help="dev is fine to look at while building; test is for final reporting only")
     e.set_defaults(run=_eval)

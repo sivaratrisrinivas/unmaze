@@ -12,7 +12,7 @@ import numpy as np
 import torch
 
 from unmaze.diffusion import Schedule, Solver
-from unmaze.maze import HELD_OUT_START, generate
+from unmaze.maze import HELD_OUT_START, Puzzle, generate
 from unmaze.model import UNet
 
 
@@ -25,6 +25,8 @@ class TrainConfig:
     base: int = 48
     ema_decay: float = 0.999
     seed: int = 0
+    styles: tuple[str, ...] = ("uniform",)       # which kinds of maze to train on...
+    style_weights: tuple[float, ...] = (1.0,)    # ...and how often each is drawn
 
 
 @dataclass
@@ -47,6 +49,7 @@ class Run:
 def load_run(path: str | Path) -> Run:
     """Rebuild a Run from a checkpoint with no further configuration (the loss history is not kept)."""
     saved = torch.load(path, map_location="cpu", weights_only=True)
+    saved["config"] = {k: tuple(v) if isinstance(v, list) else v for k, v in saved["config"].items()}
     config = TrainConfig(**saved["config"])
     model = UNet(base=config.base)
     model.load_state_dict(saved["state_dict"])
@@ -56,6 +59,18 @@ def load_run(path: str | Path) -> Run:
 def load_solver(path: str | Path) -> Solver:
     """A Solver ready to use, rebuilt from a checkpoint."""
     return load_run(path).solver()
+
+
+def draw_batch(config: TrainConfig, rng: np.random.Generator) -> list[tuple[str, Puzzle]]:
+    """A fresh batch of (style, Puzzle) pairs, each style drawn in proportion to its weight."""
+    seeds = rng.integers(0, HELD_OUT_START, config.batch_size)
+    if len(config.styles) == 1:  # draws nothing extra, so single-style runs stay reproducible
+        chosen = [0] * config.batch_size
+    else:
+        weights = np.array(config.style_weights, dtype=float)
+        chosen = rng.choice(len(config.styles), size=config.batch_size, p=weights / weights.sum())
+    return [(config.styles[k], generate(config.maze_size, int(seed), config.styles[k]))
+            for k, seed in zip(chosen, seeds)]
 
 
 def train(config: TrainConfig, on_progress: Callable[[int, float, Run], None] | None = None,
@@ -78,7 +93,7 @@ def train(config: TrainConfig, on_progress: Callable[[int, float, Run], None] | 
         for group in optimiser.param_groups:
             group["lr"] = config.lr * lr_scale
 
-        puzzles = [generate(config.maze_size, int(s)) for s in rng.integers(0, HELD_OUT_START, config.batch_size)]
+        puzzles = [puzzle for _, puzzle in draw_batch(config, rng)]
         cond = torch.from_numpy(np.stack([p.encode() for p in puzzles]))
         x0 = torch.from_numpy(np.stack([p.solution() for p in puzzles])).float().unsqueeze(1) * 2 - 1
         t = torch.randint(0, schedule.timesteps, (config.batch_size,))
