@@ -1,8 +1,8 @@
-"""Out-of-distribution probe: Overlook mazes carved by randomised depth-first search instead of Wilson's algorithm.
+"""Out-of-distribution probe: Overlook mazes carved by randomised depth-first search ("winding" style).
 
-The model trains only on uniformly random spanning-tree mazes. DFS mazes are a different family: long winding
-corridors and far fewer branches, closer to how a designed hedge maze feels. This script asks how the shipped
-checkpoint does on them, without retraining. Not part of the package: it is an audit probe.
+The audit's first model trained only on uniformly random spanning-tree mazes. Winding mazes are a different
+family: long corridors and far fewer branches, closer to how a designed hedge maze feels. This script asks how a
+checkpoint does on them. (It is now just `unmaze eval --style winding` with a different seed range.)
 
     python scripts/measure_ood.py --count 500
 """
@@ -18,34 +18,15 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).parent))
 from measure import solve_all, wilson  # noqa: E402
 
-from unmaze.maze import Puzzle  # noqa: E402
+from unmaze.maze import Puzzle, generate  # noqa: E402
 from unmaze.training import load_run  # noqa: E402
 
 OOD_START = 5_000_000_000
 
 
 def dfs_overlook(n: int, seed: int) -> Puzzle:
-    """A perfect maze carved by randomised depth-first search, entered from the outer ring, heart at the centre."""
-    rng = np.random.default_rng(seed)
-    walls = np.ones((2 * n + 1, 2 * n + 1), dtype=bool)
-    here = (int(rng.integers(n)), int(rng.integers(n)))
-    walls[2 * here[0] + 1, 2 * here[1] + 1] = False
-    stack, seen = [here], {here}
-    while stack:
-        r, c = stack[-1]
-        options = [(r + dr, c + dc) for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1))
-                   if 0 <= r + dr < n and 0 <= c + dc < n and (r + dr, c + dc) not in seen]
-        if not options:
-            stack.pop()
-            continue
-        nr, nc = options[int(rng.integers(len(options)))]
-        walls[r + nr + 1, c + nc + 1] = False
-        walls[2 * nr + 1, 2 * nc + 1] = False
-        seen.add((nr, nc))
-        stack.append((nr, nc))
-    ring = [(r, c) for r in range(n) for c in range(n) if r in (0, n - 1) or c in (0, n - 1)]
-    er, ec = ring[int(rng.integers(len(ring)))]
-    return Puzzle(walls, (2 * er + 1, 2 * ec + 1), (n, n))
+    """The depth-first-search ("winding") Overlook maze; the package's own generator makes exactly these."""
+    return generate(n, seed, "winding")
 
 
 def main() -> None:

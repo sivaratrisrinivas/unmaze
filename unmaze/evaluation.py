@@ -28,15 +28,16 @@ def wilson_interval(successes: int, trials: int, z: float = 1.96) -> tuple[float
 
 
 def evaluate(solver: Solver, maze_size: int, count: int = 200, steps: int = 50, batch: int = 100,
-             split: str = "dev") -> Report:
+             split: str = "dev", style: str = "uniform") -> Report:
     """Solve the same `count` held-out Puzzles every time, so Reports are comparable between solvers.
 
-    `split` is "dev" (fine to look at while building) or "test" (for final reporting only).
+    `split` is "dev" (fine to look at while building) or "test" (for final reporting only);
+    `style` is the kind of maze (see unmaze.maze.STYLES).
     """
     start = {"dev": HELD_OUT_START, "test": TEST_START}[split]
     verdicts = []
     for first in range(0, count, batch):
-        puzzles = [generate(maze_size, start + i) for i in range(first, min(first + batch, count))]
+        puzzles = [generate(maze_size, start + i, style) for i in range(first, min(first + batch, count))]
         attempts = solver.solve(puzzles, steps=steps, seed=first)
         verdicts += [puzzle.judge(attempt) for puzzle, attempt in zip(puzzles, attempts)]
     return Report(

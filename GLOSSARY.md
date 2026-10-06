@@ -14,6 +14,10 @@ _Avoid_: labyrinth, board, map
 A Maze with an odd n, a single **Entrance** on its outer ring and a **Heart** at its centre, drawn as hedges. The only kind of Puzzle Unmaze makes.
 _Avoid_: hedge maze (that is how it is drawn, not what it is), normal maze, random maze
 
+**Style**:
+How an Overlook Maze was carved: **uniform** (a uniformly random perfect maze), **winding** (depth-first carving: long corridors, few branches, long routes) or **bushy** (randomised Prim: many short dead ends). A Solver is trained on a mix of Styles and judged on each separately, because one blended number hides the weakest.
+_Avoid_: generator, family, difficulty
+
 **Entrance**:
 The cell on the outer ring of an Overlook Maze where the outside world meets the hedges. The **Start**.
 _Avoid_: door, gate, opening

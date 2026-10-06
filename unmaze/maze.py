@@ -127,15 +127,24 @@ class Puzzle:
         return Verdict(True, iou)
 
 
-def generate(n: int, seed: int) -> Puzzle:
-    """A uniformly random Overlook Maze of n-by-n cells, repeatable from `seed`.
+STYLES = ("uniform", "winding", "bushy")
+
+
+def generate(n: int, seed: int, style: str = "uniform") -> Puzzle:
+    """An Overlook Maze of n-by-n cells, repeatable from `seed`.
 
     The Entrance (Start) is a random cell on the outer ring; the Heart (Goal) is the centre cell.
+    `style` is how the maze is carved:
+      uniform  a uniformly random perfect maze (Wilson's algorithm)
+      winding  depth-first carving: long corridors, few branches, long routes
+      bushy    randomised Prim: many short dead ends
     """
+    if style not in STYLES:
+        raise ValueError(f"unknown maze style {style!r}; choose from {', '.join(STYLES)}")
     if n < 3 or n % 2 == 0:
         raise ValueError(f"an Overlook Maze needs an odd size of at least 3 cells, not {n}")
     rng = np.random.default_rng(seed)
-    walls = _carve_perfect_maze(n, rng)
+    walls = _CARVERS[style](n, rng)
     ring = [(r, c) for r in range(n) for c in range(n) if r in (0, n - 1) or c in (0, n - 1)]
     entrance = ring[rng.integers(len(ring))]
     return Puzzle(walls, _cell_pixel(entrance), _cell_pixel((n // 2, n // 2)))
@@ -145,7 +154,7 @@ def _cell_pixel(cell: Pixel) -> Pixel:
     return 2 * cell[0] + 1, 2 * cell[1] + 1
 
 
-def _carve_perfect_maze(n: int, rng: np.random.Generator) -> np.ndarray:
+def _carve_uniform(n: int, rng: np.random.Generator) -> np.ndarray:
     """Wilson's algorithm: loop-erased random walks from each cell until they meet the maze so far.
 
     Gives a uniformly random spanning tree of the n-by-n lattice, drawn on a (2n+1)-pixel Grid.
@@ -174,3 +183,52 @@ def _carve_perfect_maze(n: int, rng: np.random.Generator) -> np.ndarray:
             in_maze.add(here)
             here = there
     return walls
+
+
+def _carve_winding(n: int, rng: np.random.Generator) -> np.ndarray:
+    """Randomised depth-first search ("recursive backtracker"): keep walking, back up only when stuck."""
+    walls = np.ones((2 * n + 1, 2 * n + 1), dtype=bool)
+    here = (int(rng.integers(n)), int(rng.integers(n)))
+    walls[_cell_pixel(here)] = False
+    stack, seen = [here], {here}
+    while stack:
+        r, c = stack[-1]
+        options = [(r + dr, c + dc) for dr, dc in _STEPS
+                   if 0 <= r + dr < n and 0 <= c + dc < n and (r + dr, c + dc) not in seen]
+        if not options:
+            stack.pop()
+            continue
+        nr, nc = options[int(rng.integers(len(options)))]
+        walls[r + nr + 1, c + nc + 1] = False
+        walls[_cell_pixel((nr, nc))] = False
+        seen.add((nr, nc))
+        stack.append((nr, nc))
+    return walls
+
+
+def _carve_bushy(n: int, rng: np.random.Generator) -> np.ndarray:
+    """Randomised Prim: grow from one cell by joining a random edge of the maze so far to a new cell."""
+    walls = np.ones((2 * n + 1, 2 * n + 1), dtype=bool)
+    first = (int(rng.integers(n)), int(rng.integers(n)))
+    walls[_cell_pixel(first)] = False
+    seen = {first}
+
+    def edges_from(cell: Pixel) -> list[tuple[Pixel, Pixel]]:
+        r, c = cell
+        return [(cell, (r + dr, c + dc)) for dr, dc in _STEPS if 0 <= r + dr < n and 0 <= c + dc < n]
+
+    frontier = edges_from(first)
+    while frontier:
+        i = int(rng.integers(len(frontier)))
+        frontier[i], frontier[-1] = frontier[-1], frontier[i]
+        (r, c), (nr, nc) = frontier.pop()
+        if (nr, nc) in seen:
+            continue
+        walls[r + nr + 1, c + nc + 1] = False
+        walls[_cell_pixel((nr, nc))] = False
+        seen.add((nr, nc))
+        frontier += edges_from((nr, nc))
+    return walls
+
+
+_CARVERS = {"uniform": _carve_uniform, "winding": _carve_winding, "bushy": _carve_bushy}
