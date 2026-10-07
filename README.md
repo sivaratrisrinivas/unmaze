@@ -78,6 +78,36 @@ Zero-shot on maze *sizes* it was not trained on (50 steps):
 
 Reproduce with `python -m unmaze eval --count 1000 --style uniform` (it prints the interval; without `--style` it reports each of the three maze styles separately). Use `--split test` for final numbers only. The 30 mazes in the page are the first 30 dev seeds, picked without looking at the results (all solved).
 
+## Architecture
+
+```mermaid
+flowchart LR
+    subgraph World["maze.py: the world"]
+        GEN["generate(n, seed, style)"] --> PZ["Puzzle<br/>walls, entrance, heart"]
+        PZ --> TRUTH["true path (BFS)"]
+        JUDGE{{"Verdict<br/>one simple path?"}}
+    end
+    subgraph Learn["training.py: learn"]
+        TRUTH --> MASK["path mask +1 / -1"]
+        MASK -->|add noise| NOISY["noisy mask"]
+        NOISY --> UNET["model.py: U-Net<br/>ResBlocks + self-attention"]
+        PZ -->|3 condition channels| UNET
+        UNET -->|predicts clean mask| LOSS["loss vs true mask"]
+        LOSS -.->|update weights| UNET
+        UNET --> CKPT[("checkpoint")]
+    end
+    subgraph Solve["diffusion.py: solve"]
+        CKPT --> SOLVER["Solver<br/>50-step DDIM"]
+        SNOW["pure Gaussian noise"] --> SOLVER
+        PZ --> SOLVER
+        SOLVER --> ANSWER["threshold at 0 = answer"]
+        ANSWER --> JUDGE
+    end
+    JUDGE --> EVAL["evaluation.py<br/>solve rate"]
+    SOLVER -->|frames| EXPORT["export.py"] --> WEB["web/index.html<br/>replay + film"]
+    SOLVER -->|trace| VIZ["viz.py<br/>PNG strip / GIF"]
+```
+
 ## How it works
 
 1. **The puzzles.** Every puzzle is an *Overlook maze*: an odd-sized square perfect maze (uniformly random, via Wilson's algorithm) entered from a random cell on its outer ring, with the **heart** at the centre. The true solution comes from breadth-first search. Training generates fresh mazes every step, so the model cannot memorise; held-out mazes come from a seed range training never touches.
